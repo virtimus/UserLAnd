@@ -55,8 +55,9 @@ class ServerService : Service(), CoroutineScope {
 
         when (intent?.getStringExtra("type")) {
             "start" -> {
+            	val autoStartClient: Boolean = intent.getBooleanExtra("autoStartClient", true)
                 val session: Session = intent.getParcelableExtra("session")!!
-                this.launch { startSession(session) }
+                this.launch { startSession(session, autoStartClient) }
             }
             "stopApp" -> {
                 val app: App = intent.getParcelableExtra("app")!!
@@ -119,17 +120,20 @@ class ServerService : Service(), CoroutineScope {
         updateSession(session)
     }
 
-    private suspend fun startSession(session: Session) {
+    private suspend fun startSession(session: Session, autoStartClient : Boolean = true) {
         startForeground(NotificationConstructor.serviceNotificationId, notificationManager.buildPersistentServiceNotification())
         session.pid = localServerManager.startServer(session)
 
-        while (!localServerManager.isServerRunning(session)) {
-            delay(500)
+		if (autoStartClient) {
+	        while (!localServerManager.isServerRunning(session)) {
+	            delay(500)
+	        }
         }
 
         session.active = true
         updateSession(session)
-        startClient(session)
+        if (autoStartClient)
+        	startClient(session)
         activeSessions[session.pid] = session
     }
 

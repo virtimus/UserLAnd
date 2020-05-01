@@ -1,5 +1,9 @@
 ![UserLAnd Feature Graphic](https://raw.githubusercontent.com/CypherpunkArmory/UserLAnd/master/fastlane/metadata/android/en-US/images/featureGraphic.png)
 
+## Additional features of this 'tuned' version
+
+- F1 - autostart session(s) (additional app for autostart UserLand Itself needed)
+
 # Welcome to UserLAnd
 
 The easiest way to run a Linux distribution or application on Android.   

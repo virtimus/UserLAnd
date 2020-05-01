@@ -2,6 +2,8 @@ package tech.ula
 
 import android.app.AlertDialog
 import android.app.DownloadManager
+import androidx.lifecycle.LifecycleOwner 
+import androidx.lifecycle.LiveData
 import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProviders
 import android.content.BroadcastReceiver
@@ -34,6 +36,7 @@ import androidx.navigation.findNavController
 import androidx.navigation.ui.NavigationUI
 import androidx.navigation.ui.NavigationUI.setupWithNavController
 import kotlinx.android.synthetic.main.activity_main.* // ktlint-disable no-wildcard-imports
+import kotlinx.android.synthetic.main.frag_session_list.*
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -51,6 +54,7 @@ import tech.ula.viewmodel.* // ktlint-disable no-wildcard-imports
 import tech.ula.ui.FilesystemListFragment
 import tech.ula.model.repositories.DownloadMetadata
 import tech.ula.utils.preferences.* // ktlint-disable no-wildcard-imports
+import tech.ula.ui.SessionListAdapter
 
 class MainActivity : AppCompatActivity(), SessionListFragment.SessionSelection, AppsListFragment.AppSelection, FilesystemListFragment.FilesystemListProgress {
 
@@ -161,7 +165,33 @@ class MainActivity : AppCompatActivity(), SessionListFragment.SessionSelection, 
         }
 
         viewModel.getState().observe(this, stateObserver)
+   
+        val autostart = intent.getBooleanExtra("autostart", false)
+        if (autostart){
+            val ulaDatabase : UlaDatabase = UlaDatabase.getInstance(this)
+            ulaDatabase.sessionDao().getAllSessions().observeOnce(this, Observer{ t ->
+                if (t != null) {
+                    for (session in t){
+                        if (session.startOnBoot && !session.active) {
+                            Toast.makeText(this@MainActivity, "Starting '${session.name}' session...",Toast.LENGTH_SHORT).show()
+                            startSession(session, false)
+                        }
+                    }
+                }
+                finish()
+            })
+        }       
+        
     }
+    
+    fun <T> LiveData<T>.observeOnce(lifecycleOwner: LifecycleOwner, observer: Observer<T>) {
+        observe(lifecycleOwner, object : Observer<T> {
+            override fun onChanged(t: T?) {
+                observer.onChanged(t)
+                removeObserver(this)
+            }
+        })
+    }    
 
     private fun setNavStartDestination() {
         val userPreference = defaultSharedPreferences.getString("pref_default_nav_location", "Apps")
@@ -318,10 +348,11 @@ class MainActivity : AppCompatActivity(), SessionListFragment.SessionSelection, 
         session.geometry = deviceDimensions.getScreenResolution()
     }
 
-    private fun startSession(session: Session) {
+    private fun startSession(session: Session, autoStartClient : Boolean = true) {
         val serviceIntent = Intent(this, ServerService::class.java)
                 .putExtra("type", "start")
                 .putExtra("session", session)
+                .putExtra("autoStartClient", autoStartClient)
         startService(serviceIntent)
     }
 

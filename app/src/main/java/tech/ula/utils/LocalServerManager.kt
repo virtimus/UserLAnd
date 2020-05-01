@@ -21,11 +21,36 @@ class LocalServerManager(
     }
 
     fun startServer(session: Session): Long {
+        if (session.startOnBoot)
+            runBootScript(session)
         return when (session.serviceType) {
             ServiceType.Ssh -> startSSHServer(session)
             ServiceType.Vnc -> startVNCServer(session)
             ServiceType.Xsdl -> setDisplayNumberAndStartTwm(session)
             else -> 0
+        }
+    }
+    
+    private fun runBootScript(session: Session): Long {
+    	val filesystemDirName = session.filesystemId.toString()
+        /*
+            val script = File(applicationFilesDirPath, "/$filesystemDirName/support/autostart.sh")
+            script.writeText("#! /bin/bash\n\nsudo apachectl start")
+            script.setExecutable(true)
+        */
+        deletePidFile(session)
+        val command = "/support/autostart.sh"
+        val result = busyboxExecutor.executeProotCommand(command, filesystemDirName, false)
+        return when (result) {
+            is OngoingExecution -> result.process.pid()
+            is FailedExecution -> {
+                //logger.logRuntimeErrorForCommand(functionName = "runBootScript", command = command, err = result.reason)
+                val details = "func: runBootScript err: ${result.reason}"
+                val breadcrumb = UlaBreadcrumb("LocalServerManager", BreadcrumbType.RuntimeError, details)
+                logger.addBreadcrumb(breadcrumb)
+                -1
+            }
+            else -> -1
         }
     }
 
@@ -41,6 +66,10 @@ class LocalServerManager(
 
     fun isServerRunning(session: Session): Boolean {
         val command = "support/isServerInProcTree.sh ${session.serverPid()}"
+        
+        //Has start on boot flag so dont wait for any server.
+        //if (session.startOnBoot) return true
+        
         // The server itself is run by a third-party, so we can consider this to always be true.
         // The third-party app is responsible for handling errors starting their server.
         if (session.serviceType == ServiceType.Xsdl) return true

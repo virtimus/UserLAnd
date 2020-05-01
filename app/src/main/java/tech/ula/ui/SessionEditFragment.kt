@@ -110,9 +110,17 @@ class SessionEditFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
 
         text_input_session_name.setText(session.name)
+        
         if (session.isAppsSession) {
             text_input_session_name.isEnabled = false
-        }
+ 			checkbox_start_boot.isEnabled = true
+            checkbox_start_boot.isChecked = session.startOnBoot
+            checkbox_start_boot.setOnCheckedChangeListener { buttonView, isChecked -> session.startOnBoot = isChecked }
+        }/*else{
+            checkbox_start_boot.isEnabled = false
+            checkbox_start_boot.isChecked = false
+        }*/           
+
         text_input_session_name.addTextChangedListener(object : TextWatcher {
             override fun afterTextChanged(p0: Editable?) {
                 session.name = p0.toString()
